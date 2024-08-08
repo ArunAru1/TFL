@@ -1,0 +1,328 @@
+libname raw1 "/home/u61674114/INPUT/Kapil_ADAM";
+
+***sorting the data and keep the necessary variable;
+
+proc sort data=raw1.adsl out=adsl1 (keep= usubjid sex Age agegr1 agegr1n racen trt01a trt01an ethnic heightbl weightbl);
+by usubjid;
+run;
+***doubling the data for calculating total column;
+
+data adsl2;
+set adsl1;
+output;
+TRT01AN = 99;
+TRT01A = "total";
+output;
+run;
+
+****calculating header trtment total;
+
+proc sql;
+select count(distinct usubjid) into: trt1- 
+from adsl2
+group by trt01an;
+run;
+
+%put >>>>>>trt1=&trt1 trt2=&trt2 trt2=&trt3 trt2=&trt4;
+
+***calculating sex variable count;
+
+proc freq data=adsl2 noprint;
+tables trt01an/ out=sex1 (DROP=Percent) ;
+run;
+
+proc freq data=adsl2 noprint;
+tables trt01an*sex/ out=sex2 (DROP=Percent) ;
+run;
+
+data sex3;
+length np $ 11;
+merge sex1 sex2 (rename=(count=count_n)) ;
+by trt01an;
+percent =(count_n/count)*100;
+np=strip(count_n)!!"("!!strip(round(percent))!!"%)" ;
+run;
+
+proc sort data=sex3; by sex; run;
+
+Proc transpose data=sex3 prefix=_ out=sex4;
+by sex;
+var np;
+id trt01an;
+run;
+
+**n;
+
+data num1;
+length count1 $ 30;
+set sex1;
+count1 = put(count,best.);
+run;
+
+proc transpose data=num1 prefix=_  out=Num2;
+var count1;
+id trt01an;
+run;
+
+Data Num3;
+set  num2(in=a) sex4(in=b);
+if a then sex="n";
+order = 1;
+run;
+
+data dummy;
+length sex $ 30;
+sex = "Sex";
+order=1;
+run;
+
+data Sex;
+set dummy Num3;
+run;
+
+************************************************************************;
+**Age category;
+
+proc freq data=adsl2 noprint;
+tables trt01an*agegr1n/ out=Age2 (DROP=Percent) ;
+run;
+
+data Age3;
+merge sex1 Age2 (rename=(count=count_n));
+by trt01an;
+percent =(count_n/count)*100;
+np=strip(count_n)!!"("!!strip(round(percent,.1))!!"%)" ;
+agegr1n_ = put(agegr1n,8.);
+run;
+
+proc sort data=Age3; by agegr1n_; run;
+
+Proc transpose data=Age3 prefix=_ out=Age4;
+by agegr1n_;
+var np;
+id trt01an;
+run;
+
+Data Agegr1 (rename=(agegr1n_=sex));
+set  num2(in=a) Age4(in=b);
+if a then agegr1n_="n";
+run;
+
+data dummy;
+length sex $ 30;
+sex = "Age (YEARS)[1]";
+run;
+
+data Agegr;
+set dummy Agegr1;
+order =3;
+run;
+
+******************************************************************;
+*********************************************************************************;
+/* proc freq data=adsl2 noprint; */
+/* tables trt01an*Racen/ out=Race2 (DROP=Percent) ; */
+/* run; */
+/*  */
+/* data Race3; */
+/* merge sex1 Race2 (rename=(count=count_n)); */
+/* by trt01an; */
+/* percent =(count_n/count)*100; */
+/* np=strip(count_n)!!"("!!strip(round(percent))!!"%)" ; */
+/* Racen_ = put(Racen,8.); */
+/* run; */
+/*  */
+/* proc sort data=Race3; */
+/* by Racen_; */
+/* run; */
+/*  */
+/* Proc transpose data=Race3 out=Race4; */
+/* by Racen_; */
+/* var np; */
+/* id trt01an; */
+/* run; */
+/*  */
+/* Data Race5 (rename=(Racen_=sex)); */
+/* set  num2(in=a) Race4(in=b); */
+/* if a then Racen_="n"; */
+/* run; */
+/*  */
+/* data dummy; */
+/* length sex $ 30; */
+/* sex = "High Level Race"; */
+/* run; */
+/*  */
+/* data Race; */
+/* set dummy Race; */
+/* order =4; */
+/* run; */
+************************************************************************;
+
+
+proc freq data=adsl2 noprint;
+tables trt01an*ethnic/ out=ethnic2 (DROP=Percent) ;
+run;
+
+data ethnic3;
+merge sex1 ethnic2 (rename=(count=count_n));
+by trt01an;
+percent =(count_n/count)*100;
+np=strip(count_n)!!"("!!strip(round(percent))!!"%)" ;
+run;
+
+proc sort data=ethnic3;
+by ethnic;
+run;
+
+Proc transpose data=ethnic3 prefix=_ out=ethnic4;
+by ethnic;
+var np;
+id trt01an;
+run;
+
+
+Data ethnic5 (rename=(ethnic=sex));
+set  num2(in=a) ethnic4(in=b);
+if a then ethnic="n";
+run;
+
+data dummy;
+length sex $ 30;
+sex = "Ethnicity";
+run;
+
+data ethnic;
+set dummy ethnic5;
+order =4;
+run;
+
+************************************************************************;
+proc sort data=adsl2;by trt01an;run;
+proc means data=adsl2 noprint;
+by trt01an;
+var age;
+output out=age_stat1 n=N std=SD median=Median min=Min max=Max;
+run;
+
+proc transpose data=age_stat1 prefix=_ out=age_stat2 ;
+id trt01an ;
+var N SD Median Min Max;
+run;
+
+data age_stat3;
+set age_stat2;
+placebo=put(_0,30.);
+low_doge=put(_54,30.);
+high_dose=put(_81,30.);
+total=put(_99,30.);
+run;
+
+data dummy;
+length sex $ 30;
+sex = "Age (YEARS)[1]";
+run;
+
+data age_stat;
+set dummy age_stat3(rename=(_name_=sex));
+order =2;
+keep  sex order placebo low_doge high_dose total;
+run;
+
+************************************************************************;
+
+proc means data=adsl2 noprint;
+by trt01an;
+var weightbl;
+output out=weight_stat1 n=N std=SD median=Median min=Min max=Max;
+run;
+
+proc transpose data=weight_stat1 prefix=_ out=weight_stat2;
+id trt01an ;
+var N SD Median Min Max;
+run;
+
+data weight_stat3;
+set weight_stat2;
+placebo=put(_0,30.);
+low_doge=put(_54,30.);
+high_dose=put(_81,30.);
+total=put(_99,30.);
+run;
+
+data dummy;
+length sex $ 30;
+sex = "Weight (kg)";
+run;
+
+data weight ;
+set dummy weight_stat3(rename=(_name_=sex));
+order =5;
+keep sex order placebo low_doge high_dose total;
+run;
+************************************************************************;
+proc means data=adsl2 noprint;
+by trt01an;
+var heightbl;
+output out=height_stat1 n=N std=SD median=Median min=Min max=Max;
+run;
+
+proc transpose data=height_stat1 prefix=_ out=height_stat2;
+id trt01an ;
+var N SD Median Min Max;
+run;
+
+data height_stat3;
+set height_stat2;
+placebo=put(_0,30.);
+low_doge=put(_54,30.);
+high_dose=put(_81,30.);
+total=put(_99,30.);
+run;
+
+run;
+data dummy;
+length sex $ 30;
+sex = "Height (cm)";
+run;
+
+data height ;
+set dummy height_stat3(rename=(_name_=sex));
+order =6;
+keep  sex order placebo low_doge high_dose total;
+run;
+************************************************************************;
+
+
+
+data final1;
+set sex (rename=(_0=placebo) rename=(_54=low_doge) rename=(_81=high_dose) rename=(_99=total)) 
+    Agegr (rename=(_0=placebo) rename=(_54=low_doge) rename=(_81=high_dose) rename=(_99=total))
+    ethnic  (rename=(_0=placebo) rename=(_54=low_doge) rename=(_81=high_dose) rename=(_99=total))
+    age_stat weight height ;
+by order;
+run;
+
+%call_styles_rtf1;
+
+ods pdf file="/home/u61674114/CODE/SDTM/check.pdf" style = styles.rtf;
+
+OPTIONS ORIENTATION=PORTRAIT NODATE;
+
+proc report data=final1 headline headskip nowindows split="*" ;
+columns Order sex placebo low_doge high_dose total;
+define order/order noprint;
+break after order/skip;
+define sex/ display "" style(header)={just=l} style(column)={just=l cellpadding=15 cellwidth=20%};
+Define placebo/ display "placebo*(N=&trt1)" center  style(column)={cellpadding=15 cellwidth=10%};
+Define low_doge/ display "low doge*(N=&trt2)" center  style(column)={cellpadding=15 cellwidth=10%};
+Define high_dose/ display "high dose*(N=&trt3)" center style(column)={cellpadding=15 cellwidth=10%};
+Define total/ display "placebo*(N=&trt4)" center style(column)={cellpadding=15 cellwidth=10%};
+compute Order;
+    count+1;
+    if mod(count,2) then do;
+   call Define(_row_, "style" , "style=[background=grey]");
+  end;
+endcomp;
+run;
+
+ods pdf close;
