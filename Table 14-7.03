@@ -75,11 +75,10 @@ proc report data=appen split="*" missing style(report)=[frame=void rules=none]
 		borderbottomwidth=1];
 	columns PARAM Position order TRTP N suborder AVISIT AVAL_n AVAL_mean AVAL_std 
 		AVAL_median AVAL_min AVAL_max;
-	define param/order 'Measure' style(header)=[borderbottomstyle=solid];
-	define Position/order style(header)=[borderbottomstyle=solid 
-		borderbottomcolor=grey borderbottomwidth=1];
+	define param/order 'Measure' ;
+	define Position/order;
 	define order/order noprint;
-	define TRTP/order 'Treatment' style(header)=[borderbottomstyle=solid];
+	define TRTP/order 'Treatment' ;
 	define N/order;
 	define suborder/order noprint;
 	format AVAL_std 6.2 AVAL_mean AVAL_median AVAL_min AVAL_max 6.1;
