@@ -1,0 +1,96 @@
+libname raw5 xport "/home/u61674114/INPUT/advs.xpt";
+
+data advs1;
+	set raw5.advs (keep=usubjid AVAL CHG TRTP AVISIT PARAM);
+	Where PARAM="Weight (kg)" & AVISIT in ("Baseline", "Week 24", 
+		"End of Treatment");
+	Position="AVAL";
+run;
+
+proc tabulate data=advs1 out=k;
+	class PARAM Position TRTP AVISIT;
+	var AVAL;
+	table PARAM*Position*TRTP*AVISIT, AVAL*(n mean std median min max);
+run;
+
+data advs2;
+	set raw5.advs (keep=usubjid AVAL CHG TRTP AVISIT PARAM);
+	Where PARAM="Weight (kg)" & AVISIT in ("Week 24", "End of Treatment");
+	Position="CHG";
+run;
+
+proc tabulate data=advs2 out=L;
+	class PARAM Position TRTP AVISIT;
+	var CHG;
+	table PARAM*Position*TRTP*AVISIT, CHG*(n mean std median min max);
+run;
+
+data appen;
+	set k l (rename=(CHG_n=AVAL_n) rename=(CHG_mean=AVAL_mean) 
+		rename=(CHG_std=AVAL_std) rename=(CHG_median=AVAL_median) 
+		rename=(CHG_min=AVAL_min) rename=(CHG_max=AVAL_max));
+
+	IF TRTP="Placebo" then
+		do;
+			N=86;
+			order=1;
+		end;
+
+	IF TRTP="Xanomeline High Dose" then
+		do;
+			N=84;
+			order=3;
+		end;
+
+	IF TRTP="Xanomeline Low Dose" then
+		do;
+			N=84;
+			order=2;
+		end;
+
+	if AVISIT="Baseline" then
+		suborder=1;
+
+	if AVISIT="End of Treatment" then
+		suborder=3;
+
+	if AVISIT="Week 24" then
+		suborder=2;
+run;
+
+%call_styles_rtf1;
+ods listing close;
+ods tagsets.rtf file="/home/u61674114/Pilot_study/demog.pdf" style=styles.rtf1 
+	uniform tablerows=20 options(continue_tag="off");
+title1 j=l "Protocol: CDISCPILOT01" j=r "Page 1 of 2";
+title2 j=l "Population: Safety ";
+title3 j=c "Table 14-7.03";
+title4 j=c "Summary of Weight Change from Baseline at End of Treatment";
+footnote j=l "1 End of treatment is the last on-treatment assessment of the specified vital sign (on or before the Week 24 visit)." 
+	j=r "%sysfunc(datetime(),datetime19.)";
+option orientation=landscape nodate nonumber;
+
+proc report data=appen split="*" missing style(report)=[frame=void rules=none] 
+		style(header)=[borderbottomstyle=solid borderbottomcolor=grey 
+		borderbottomwidth=1];
+	columns PARAM Position order TRTP N suborder AVISIT AVAL_n AVAL_mean AVAL_std 
+		AVAL_median AVAL_min AVAL_max;
+	define param/order 'Measure' style(header)=[borderbottomstyle=solid];
+	define Position/order style(header)=[borderbottomstyle=solid 
+		borderbottomcolor=grey borderbottomwidth=1];
+	define order/order noprint;
+	define TRTP/order 'Treatment' style(header)=[borderbottomstyle=solid];
+	define N/order;
+	define suborder/order noprint;
+	format AVAL_std 6.2 AVAL_mean AVAL_median AVAL_min AVAL_max 6.1;
+	define AVISIT/"Planned*Relative*Time";
+	define AVAL_n/'n';
+	define AVAL_mean/'Mean';
+	define AVAL_std/'SD';
+	define AVAL_median/'Median';
+	define AVAL_min/'Min';
+	define AVAL_max/'Max';
+run;
+
+ods listing;
+ods tagsets.rtf close;
