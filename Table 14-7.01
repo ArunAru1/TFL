@@ -1,0 +1,116 @@
+libname raw5 xport "/home/u61674114/INPUT/advs.xpt";
+
+data advs1;
+	set raw5.advs (keep=usubjid AVAL BASETYPE TRTP AVISIT PARAM);
+	Where PARAM="Systolic Blood Pressure (mmHg)" & AVISIT in ("Baseline","Week 24", 
+		"End of Treatment");
+run;
+
+proc tabulate data=advs1 out=Systolic_Blood;
+	class PARAM BASETYPE TRTP AVISIT;
+	var AVAL;
+	table PARAM*BASETYPE*TRTP*AVISIT, AVAL*(n mean std median min max);
+run;
+
+data advs1;
+	set raw5.advs (keep=usubjid AVAL BASETYPE TRTP AVISIT PARAM);
+	Where PARAM="Diastolic Blood Pressure (mmHg)" & AVISIT in ("Week 24", 
+		"End of Treatment");
+run;
+
+proc tabulate data=advs1 out=Diastolic_Blood;
+	class PARAM BASETYPE TRTP AVISIT;
+	var AVAL;
+	table PARAM*BASETYPE*TRTP*AVISIT, AVAL*(n mean std median min max);
+run;
+
+data advs1;
+	set raw5.advs (keep=usubjid AVAL BASETYPE TRTP AVISIT PARAM);
+	Where PARAM="Pulse Rate (beats/min)" & AVISIT in ("Week 24", 
+		"End of Treatment");
+run;
+
+proc tabulate data=advs1 out=Pulse;
+	class PARAM BASETYPE TRTP AVISIT;
+	var AVAL;
+	table PARAM*BASETYPE*TRTP*AVISIT, AVAL*(n mean std median min max);
+run;
+
+
+data appen;
+	set Systolic_Blood Diastolic_Blood Pulse; 
+
+	IF TRTP="Placebo" then
+		do;
+			N=86;
+			order=1;
+		end;
+
+	IF TRTP="Xanomeline High Dose" then
+		do;
+			N=84;
+			order=3;
+		end;
+
+	IF TRTP="Xanomeline Low Dose" then
+		do;
+			N=84;
+			order=2;
+		end;
+
+
+	if AVISIT="End of Treatment" then
+		suborder=2;
+
+	if AVISIT="Week 24" then
+		suborder=1;
+		
+		
+		
+	if 	PARAM="Systolic Blood Pressure (mmHg)"  then
+	      ord=1;
+	      
+	 if 	PARAM="Diastolic Blood Pressure (mmHg)"  then
+	      ord=2;
+ 
+     if 	PARAM="Pulse Rate (beats/min)"  then do;
+          PARAM  ="Pulse (bpm)";
+	      ord=3; end;
+run;
+
+%call_styles_rtf1;
+ods listing close;
+ods tagsets.rtf file="/home/u61674114/Pilot_study/demog.pdf" style=styles.rtf1 
+	uniform tablerows=20 options(continue_tag="off");
+title1 j=l "Protocol: CDISCPILOT01" j=r "Page 1 of 2";
+title2 j=l "Population: Safety ";
+title3 j=c "Table 14-7.01";
+title4 j=c "Summary of Vital Signs at Baseline and End of Treatment";
+footnote j=l "1 End of treatment is the last on-treatment assessment of the specified vital sign (on or before the Week 24 visit)." 
+	j=r "%sysfunc(datetime(),datetime19.)";
+option orientation=landscape nodate nonumber;
+
+proc report data=appen split="*" missing style(report)=[frame=void rules=none] 
+		style(header)=[borderbottomstyle=solid borderbottomcolor=grey 
+		borderbottomwidth=1];
+	columns ord PARAM BASETYPE order TRTP N suborder AVISIT AVAL_n AVAL_mean AVAL_std 
+		AVAL_median AVAL_min AVAL_max;
+		define ord/order noprint;
+	define param/ order 'Measure' ;
+	define BASETYPE/order 'Position' ;
+	define order/order noprint;
+	define TRTP/order 'Treatment';
+	define N/order;
+	define suborder/order noprint;
+	format AVAL_std 6.2 AVAL_mean AVAL_median AVAL_min AVAL_max 6.1;
+	define AVISIT/"Planned*Relative*Time";
+	define AVAL_n/'n';
+	define AVAL_mean/'Mean';
+	define AVAL_std/'SD';
+	define AVAL_median/'Median';
+	define AVAL_min/'Min';
+	define AVAL_max/'Max';
+run;
+
+ods listing;
+ods tagsets.rtf close;
