@@ -1,0 +1,160 @@
+libname raw5 xport "/home/u61674114/INPUT/pilot_adsl.xpt";
+
+data adsl1;
+	set raw5.adsl;
+	where comp24fl="Y";
+	if trt01a="Placebo" then trt01a="Placebo1";
+	if trt01a="Xanomeline High Dose" then trt01a="High_Dose1";
+	if trt01a="Xanomeline Low Dose" then trt01a="Low_Dose1";
+run;
+
+proc tabulate data=adsl1 out=Completers ;
+class trt01a;
+var AVGDD;
+table AVGDD*(n mean std median min max),trt01a;
+run;
+
+proc transpose data=Completers out=trans1;
+id trt01a;
+VAR AVGDD_N AVGDD_mean AVGDD_std AVGDD_median AVGDD_min AVGDD_max;
+RUN;
+
+data adsl1;
+	set raw5.adsl;
+	where SAFFL="Y";
+	if trt01a="Placebo" then trt01a="Placebo";
+	if trt01a="Xanomeline High Dose" then trt01a="High_Dose";
+	if trt01a="Xanomeline Low Dose" then trt01a="Low_Dose";
+run;
+
+proc tabulate data=adsl1 out= Safety_Population ;
+class trt01a;
+var AVGDD;
+table AVGDD*(n mean std median min max),trt01a;
+run;
+
+proc transpose data=Safety_Population out=trans2;
+id trt01a;
+VAR AVGDD_N AVGDD_mean AVGDD_std AVGDD_median AVGDD_min AVGDD_max;
+RUN;
+
+data appen;
+    Merge  trans1 trans2;
+run;
+
+Data dummy;
+input _NAME_ $ 1-50;
+datalines;
+Average daily dose (mg)	
+;
+run;
+
+data appen1;
+    set dummy appen ;
+    if _NAME_ = "AVGDD_N" then _NAME_="n";
+    if _NAME_ = "AVGDD_Mean" then _NAME_="mean";
+    if _NAME_ = "AVGDD_Std" then _NAME_="sd";
+    if _NAME_ = "AVGDD_Median" then _NAME_="median";
+    if _NAME_ = "AVGDD_Min" then _NAME_="min";
+    if _NAME_ = "AVGDD_Max" then _NAME_="max";
+
+run;
+
+
+*********************************************************************************************************;
+
+
+data adsl1;
+	set raw5.adsl;
+	where comp24fl="Y";
+	if trt01a="Placebo" then trt01a="Placebo1";
+	if trt01a="Xanomeline High Dose" then trt01a="High_Dose1";
+	if trt01a="Xanomeline Low Dose" then trt01a="Low_Dose1";
+run;	
+
+proc tabulate data=adsl1 out=Cum_Completers ;
+class trt01a;
+var cumdose;
+table cumdose*(n mean std median min max),trt01a;
+run;
+
+proc transpose data=Cum_Completers out=cum_trans1;
+id trt01a;
+VAR cumdose_N cumdose_mean cumdose_std cumdose_median cumdose_min cumdose_max;
+RUN;
+
+data adsl1;
+	set raw5.adsl;
+	where SAFFL="Y";
+	if trt01a="Placebo" then trt01a="Placebo";
+	if trt01a="Xanomeline High Dose" then trt01a="High_Dose";
+	if trt01a="Xanomeline Low Dose" then trt01a="Low_Dose";
+run;
+
+proc tabulate data=adsl1 out=cum_Safety_Population;
+class trt01a;
+var cumdose;
+table cumdose*(n mean std median min max),trt01a;
+run;
+
+proc transpose data=cum_Safety_Population out=cum_trans2;
+id trt01a;
+VAR cumdose_N cumdose_mean cumdose_std cumdose_median cumdose_min cumdose_max;
+RUN;
+
+data appen2;
+    Merge  cum_trans1 cum_trans2;
+run;
+
+Data dummy1;
+input _NAME_ $ 1-50;
+datalines;
+Cumulative dose at end of 
+study		
+;
+run;
+
+data appen3;
+    set dummy1 appen2 ;
+    if _NAME_ = "CUMDOSE_N" then _NAME_="n";
+    if _NAME_ = "CUMDOSE_Mean" then _NAME_="mean";
+    if _NAME_ = "CUMDOSE_Std" then _NAME_="sd";
+    if _NAME_ = "CUMDOSE_Median" then _NAME_="median";
+    if _NAME_ = "CUMDOSE_Min" then _NAME_="min";
+    if _NAME_ = "CUMDOSE_Max" then _NAME_="max";
+
+run;
+
+Data appen4;
+    set appen1 appen3;
+run;
+
+
+
+%call_styles_rtf1;
+ods listing close;
+ods tagsets.rtf file="/home/u61674114/Pilot_study/demog.pdf" style=styles.rtf1 
+	uniform tablerows=20 options(continue_tag="off");
+title1 j=l "Protocol: CDISCPILOT01" j=r "Page 1 of 1";
+title2 j=l "Population: Safety ";
+title3 j=c "Table 14-4.01";
+title4 j=c "Summary of Planned Exposure to Study Drug, as of End of Study";
+footnote j=l "1 End of Study refers to week 26/Early Termination." 
+	j=r "%sysfunc(datetime(),datetime19.)";
+option orientation=landscape nodate nonumber;
+
+
+proc report data=appen4 split="*" ;
+column _NAME_ ('Completers at Week 24 * * (n=118)' Placebo1 Low_Dose1 High_Dose1) 
+              ( 'Safety Population*Includes completers and early terminators*(n=254)' Placebo Low_Dose High_Dose);
+              
+    Define Placebo1/ ' *Placebo*(n=60)';
+    Define Low_Dose1/ 'Xanomeline*Low Dose*(n=28)*';
+    Define High_Dose1/ 'Xanomeline*High Dose*(n=30)*';
+    Define Placebo/ ' *Placebo*(n=86)';
+    Define Low_Dose/ 'Xanomeline*Low Dose*(n=84)*';
+    Define High_Dose/ 'Xanomeline*High Dose*(n=84)*';
+run;
+
+ods listing;
+ods tagsets.rtf close;
