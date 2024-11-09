@@ -1,0 +1,354 @@
+***Import cm xpt file***;
+libname raw5 xport "/home/u61674114/INPUT/cm.xpt";
+libname raw6 "/home/u61674114/INPUT/CDISC_ADAM";
+
+data cm1;
+	set raw5.cm;
+run;
+
+data adsl1;
+	set raw6.adsl (keep=USUBJID TRT01A);
+
+	if TRT01A="Xanomeline Low Dose" then
+		TRT01A="Low_Dose";
+
+	if TRT01A="Xanomeline High Dose" then
+		TRT01A="High_Dose";
+run;
+
+**********************************************BIG_N**********************************************************************;
+
+proc sql;
+	select count(TRT01A) into: trt1-
+   from adsl1 group by TRT01A;
+quit;
+
+******************************************at least one concomitant medication*********************************************;
+
+data adcm1;
+	merge cm1 (in=a) adsl1 (in=b);
+	by USUBJID;
+
+	if a;
+
+	if first.USUBJID then
+		CM_1="Patients receiving at least one concomitant medication";
+run;
+
+proc freq data=adcm1 noprint;
+	tables cm_1*trt01a/out=con_med_1 (rename=(CM_1=CMDECOD));
+	where CM_1="Patients receiving at least one concomitant medication";
+run;
+
+****************************************ALIMENTARY TRACT AND METABOLISM	**********************************************;
+
+proc sql;
+	create table ALIMENTART_TRACK as select DISTINCT USUBJID, CMCLAS, TRT01A, 1 as 
+		order from adcm1 WHERE CMCLAS="ALIMENTARY TRACT AND METABOLISM";
+quit;
+
+proc freq data=ALIMENTART_TRACK noprint;
+	tables CMCLAS * TRT01A * order/out=ALIMENTART_TRACK_C;
+run;
+
+data ALIMENTART_TRACK_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="ALIMENTARY TRACT AND METABOLISM";
+	order=2;
+run;
+
+proc freq data=ALIMENTART_TRACK_SUB noprint;
+	tables CMDECOD * TRT01A * order/out=ALIMENTART_TRACK_SUB_C;
+run;
+
+*****************************************ANTINEOPLASTIC AND IMMUNOMODULATING AGENTS*********************************;
+
+proc sql;
+	create table ANTINEOPLASTIC as select DISTINCT USUBJID, CMCLAS, TRT01A, 3 as 
+		order from adcm1 WHERE CMCLAS="ANTINEOPLASTIC AND IMMUNOMODULATING AGENTS";
+quit;
+
+proc freq data=ANTINEOPLASTIC noprint;
+	tables CMCLAS * TRT01A * order/out=ANTINEOPLASTIC_C;
+run;
+
+data ANTINEOPLASTIC_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="ANTINEOPLASTIC AND IMMUNOMODULATING AGENTS";
+	order=4;
+run;
+
+proc freq data=ANTINEOPLASTIC_SUB noprint;
+	tables CMDECOD * TRT01A * order/out=ANTINEOPLASTIC_SUB_C;
+run;
+
+*****************************************BLOOD AND BLOOD FORMING ORGANS	*********************************;
+
+proc sql;
+	create table BLOOD as select DISTINCT USUBJID, CMCLAS, TRT01A, 5 as order from 
+		adcm1 WHERE CMCLAS="BLOOD AND BLOOD FORMING ORGANS";
+quit;
+
+proc freq data=BLOOD noprint;
+	tables CMCLAS * TRT01A * order/out=BLOOD_C;
+run;
+
+data BLOOD_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="BLOOD AND BLOOD FORMING ORGANS";
+	order=6;
+run;
+
+proc freq data=BLOOD_SUB noprint;
+	tables CMDECOD * TRT01A * order/out=BLOOD_SUB_C;
+run;
+
+*****************************************CARDIOVASCULAR SYSTEM*************************************************;
+
+proc sql;
+	create table CARDIOVASCULAR as select DISTINCT USUBJID, CMCLAS, TRT01A, 7 as 
+		order from adcm1 WHERE CMCLAS="CARDIOVASCULAR SYSTEM";
+quit;
+
+proc freq data=CARDIOVASCULAR noprint;
+	tables CMCLAS * TRT01A * order/out=CARDIOVASCULAR_C;
+run;
+
+data CARDIOVASCULAR_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="CARDIOVASCULAR SYSTEM";
+	order=8;
+run;
+
+proc freq data=CARDIOVASCULAR_SUB noprint;
+	tables CMDECOD * TRT01A * order/out=CARDIOVASCULAR_SUB_C;
+run;
+
+*****************************************DERMATOLOGICALS*************************************************;
+
+proc sql;
+	create table DERMATOLOGICALS as select DISTINCT USUBJID, CMCLAS, TRT01A, 9 as 
+		order from adcm1 WHERE CMCLAS="DERMATOLOGICALS";
+quit;
+
+proc freq data=DERMATOLOGICALS noprint;
+	tables CMCLAS * TRT01A* order/out=DERMATOLOGICALS_C;
+run;
+
+data DERMATOLOGICALS_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="DERMATOLOGICALS";
+	order=10;
+run;
+
+proc freq data=DERMATOLOGICALS_SUB noprint;
+	tables CMDECOD * TRT01A* order/out=DERMATOLOGICALS_SUB_C;
+run;
+
+*****************************************GENITO_URINARY*************************************************;
+
+proc sql;
+	create table GENITO_URINARY as select DISTINCT USUBJID, CMCLAS, TRT01A, 11 as 
+		order from adcm1 WHERE CMCLAS="GENITO URINARY SYSTEM AND SEX HORMONES";
+quit;
+
+proc freq data=GENITO_URINARY noprint;
+	tables CMCLAS * TRT01A* order/out=GENITO_URINARY_C;
+run;
+
+data GENITO_URINARY_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="GENITO URINARY SYSTEM AND SEX HORMONES";
+	order=12;
+run;
+
+proc freq data=GENITO_URINARY_SUB noprint;
+	tables CMDECOD * TRT01A* order/out=GENITO_URINARY_SUB_C;
+run;
+
+*****************************************NERVOUS *************************************************;
+
+proc sql;
+	create table NERVOUS as select DISTINCT USUBJID, CMCLAS, TRT01A, 13 as order 
+		from adcm1 WHERE CMCLAS="NERVOUS SYSTEM";
+quit;
+
+proc freq data=NERVOUS noprint;
+	tables CMCLAS * TRT01A * order/out=NERVOUS_C;
+run;
+
+data NERVOUS_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="NERVOUS SYSTEM";
+	order=14;
+run;
+
+proc freq data=NERVOUS_SUB noprint;
+	tables CMDECOD * TRT01A * order/out=NERVOUS_SUB_C;
+run;
+
+*****************************************RESPIRATORY  *************************************************;
+
+proc sql;
+	create table RESPIRATORY as select DISTINCT USUBJID, CMCLAS, TRT01A, 15 as 
+		order from adcm1 WHERE CMCLAS="RESPIRATORY SYSTEM";
+quit;
+
+proc freq data=RESPIRATORY noprint;
+	tables CMCLAS * TRT01A * order/out=RESPIRATORY_C;
+run;
+
+data RESPIRATORY_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="RESPIRATORY SYSTEM";
+	order=16;
+run;
+
+proc freq data=RESPIRATORY_SUB noprint;
+	tables CMDECOD * TRT01A * order/out=RESPIRATORY_SUB_C;
+run;
+
+*****************************************SYSTEMIC HORMONAL PREPARATIONS  *************************************************;
+
+proc sql;
+	create table SYSTEMIC as select DISTINCT USUBJID, CMCLAS, TRT01A, 17 as order 
+		from adcm1 WHERE CMCLAS="SYSTEMIC HORMONAL PREPARATIONS, EXCL.";
+quit;
+
+proc freq data=SYSTEMIC noprint;
+	tables CMCLAS * TRT01A * order/out=SYSTEMIC_C;
+run;
+
+data SYSTEMIC_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="SYSTEMIC HORMONAL PREPARATIONS, EXCL.";
+	order=18;
+run;
+
+proc freq data=SYSTEMIC_SUB noprint;
+	tables CMDECOD * TRT01A * order/out=SYSTEMIC_SUB_C;
+run;
+
+*****************************************UNCODED *************************************************;
+
+proc sql;
+	create table UNCODED as select DISTINCT USUBJID, CMCLAS, TRT01A, 19 as order 
+		from adcm1 WHERE CMCLAS="UNCODED";
+quit;
+
+proc freq data=UNCODED noprint;
+	tables CMCLAS * TRT01A* order/out=UNCODED_C;
+run;
+
+data UNCODED_SUB;
+	set adcm1  (keep=USUBJID CMDECOD CMCLAS TRT01A);
+	by USUBJID;
+
+	if first.USUBJID;
+	WHERE CMCLAS="UNCODED";
+	order=20;
+run;
+
+proc freq data=UNCODED_SUB noprint;
+	tables CMDECOD * TRT01A* order/out=UNCODED_SUB_C;
+run;
+
+************************************************************************************************************;
+
+data appending_all;
+	set con_med_1 ALIMENTART_TRACK_C (rename=(CMCLAS=CMDECOD)) 
+		ALIMENTART_TRACK_SUB_C ANTINEOPLASTIC_C (rename=(CMCLAS=CMDECOD)) 
+		ANTINEOPLASTIC_SUB_C BLOOD_C          (rename=(CMCLAS=CMDECOD)) BLOOD_SUB_C 
+		CARDIOVASCULAR_C (rename=(CMCLAS=CMDECOD)) CARDIOVASCULAR_SUB_C 
+		DERMATOLOGICALS_C(rename=(CMCLAS=CMDECOD)) DERMATOLOGICALS_SUB_C 
+		GENITO_URINARY_C (rename=(CMCLAS=CMDECOD)) GENITO_URINARY_SUB_C 
+		NERVOUS_C        (rename=(CMCLAS=CMDECOD)) NERVOUS_SUB_C 
+		RESPIRATORY_C    (rename=(CMCLAS=CMDECOD)) RESPIRATORY_SUB_C 
+		SYSTEMIC_C       (rename=(CMCLAS=CMDECOD)) SYSTEMIC_SUB_C 
+		UNCODED_C        (rename=(CMCLAS=CMDECOD)) UNCODED_SUB_C;
+	DROP PERCENT;
+
+	IF TRT01A="Placebo" then
+		do;
+			count1=round((count/&trt1.)*100);
+			count2=count!!"("!!compress(count1)!!"%)";
+		end;
+
+	IF TRT01A="Low_Dose" then
+		do;
+			count1=round((count/&trt2.)*100);
+			count2=count!!"("!!compress(count1)!!"%)";
+		end;
+
+	IF TRT01A="High_Dose" then
+		do;
+			count1=round((count/&trt3.)*100);
+			count2=count!!"("!!compress(count1)!!"%)";
+		end;
+run;
+
+proc sort data=appending_all;
+	by order cmdecod;
+
+proc transpose data=appending_all out=trans1;
+	id trt01a;
+	var count2;
+	by order cmdecod;
+run;
+
+data trans2;
+	set trans1;
+	array missin(3) $  High_Dose Low_Dose Placebo;
+
+	do i=1 to 3;
+
+		if missin(i)=" " then
+			missin(i)="0(0%)";
+		drop i;
+	end;
+run;
+
+options orientation=landscape nodate nonumber;
+Title j=c "Table 14-7.04";
+Title2 j=c "Summary of Concomitant Medications (Number of Subjects)";
+
+proc report data=trans2 split="*" missing style=[frame=hsides rules=groups];
+	columns order CMDECOD ("Placebo*,N = &trt3." Placebo) 
+		("Xanomeline * Low Dose, N =* &trt2." Low_Dose) 
+		("Xanomeline * High Dose, N =* &trt1." High_Dose);
+	define order/order;
+	define cmdecod/ "Therapeutic class, n (%)" style(header)={just=l};
+	define Placebo/"Overall" style(header)={bordertopcolor=grey 
+		bordertopstyle=solid bordertopwidth=0.5};
+	define Low_Dose/"Overall" style(header)={bordertopcolor=grey 
+		bordertopstyle=solid bordertopwidth=0.5};
+	define High_Dose/"Overall" style(header)={bordertopcolor=grey 
+		bordertopstyle=solid bordertopwidth=0.5};
+run;
