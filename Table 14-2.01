@@ -1,0 +1,222 @@
+libname raw3 "/home/u61674114/INPUT/CDISC_ADAM";
+
+data adsl1;
+	set raw3.adsl (keep=usubjid TRT01A Age AGEGR1 AGEGR1n Sex Race durdis durdsgr1 
+		educlvl WEIGHTBL HEIGHTBL BMIBL BMIBLGR1 MMSETOT);
+
+	If trt01a="Xanomeline High Dose" then
+		trt01a="High";
+
+	If trt01a="Xanomeline Low Dose" then
+		trt01a="low";
+	output;
+	trt01a="Overall";
+	output;
+run;
+
+proc sql;
+	select count(distinct(usubjid)) into : trt1 - from adsl1 group by trt01a;
+quit;
+
+Proc freq data=adsl1 noprint;
+	tables trt01a/out=big_n (Drop=percent);
+run;
+
+%macro summary_stat(analysis_var);
+	proc tabulate data=adsl1 out=&analysis_var.1;
+		class trt01a;
+		var &analysis_var;
+		table &analysis_var*(n mean std median min max), trt01a;
+	run;
+
+	data &analysis_var.2(keep=trt01a n Mean Median Min Max SD);
+		set &analysis_var.1;
+		n=strip(put(&analysis_var._n, best.));
+		Mean=strip(put(&analysis_var._mean, 28.1));
+		Median=strip(put(&analysis_var._median, 28.1));
+		Min=strip(put(&analysis_var._min, best.));
+		Max=strip(put(&analysis_var._max, best.));
+		SD=strip(put(&analysis_var._std, 8.2));
+	run;
+
+	proc sort data=&analysis_var.2;
+		by trt01a;
+	run;
+
+	proc transpose data=&analysis_var.2 out=&analysis_var.3;
+		var n Mean Median Min Max SD;
+		id trt01a;
+	run;
+
+%mend;
+
+%summary_stat(age);
+%summary_stat(MMSETOT);
+%summary_stat(educlvl);
+%summary_stat(WEIGHTBL);
+%summary_stat(HEIGHTBL);
+%summary_stat(BMIBL);
+%summary_stat(durdis);
+
+%macro frequency (table_var, );
+	proc freq data=adsl1 noprint;
+		tables &table_var * trt01a/out=&table_var.1 (drop=percent);
+	run;
+
+	data &table_var.2;
+		set &table_var.1;
+
+		if trt01a="High" then
+			do;
+				count1=count!!" ("!!STRIP(ROUND((count/&trt4.)*100))!!"%)";
+			end;
+
+		if trt01a="low" then
+			do;
+				count1=count!!" ("!!STRIP(ROUND((count/&trt1.)*100))!!"%)";
+			end;
+
+		if trt01a="Placebo" then
+			do;
+				count1=count!!" ("!!STRIP(ROUND((count/&trt3.)*100))!!"%)";
+			end;
+
+		if trt01a="Overall" then
+			do;
+				count1=count!!" ("!!STRIP(ROUND((count/&trt2.)*100))!!"%)";
+			end;
+	run;
+
+	proc transpose data=&table_var.2 out=&table_var.3 name=D;
+		by &table_var;
+		var count1;
+		id trt01a;
+	run;
+
+%mend;
+
+%frequency(AGEGR1);
+%frequency(Sex);
+%frequency(Race);
+%frequency(durdsgr1);
+%frequency(BMIBLGR1);
+
+data dummy_Age;
+	input _NAME_ $ 1-50;
+	cards;
+    Age (y)	
+    ;
+run;
+
+data dummy_Age_group;
+	input _NAME_ $ 1-50;
+	cards;
+    Age group
+    ;
+run;
+
+data dummy_Sex;
+	input _NAME_ $ 1-50;
+	cards;
+    Sex
+    ;
+run;
+
+data dummy_Race;
+	input _NAME_ $ 1-50;
+	cards;
+    Race (Origin)
+    ;
+run;
+
+data dummy_MMSE;
+	input _NAME_ $ 1-50;
+	cards;
+    MMSE
+    ;
+run;
+
+data dummy_durdise;
+	input _NAME_ $ 1-50;
+	cards;
+    Duration of disease
+    ;
+run;
+
+data dummy_durdise_grp;
+	input _NAME_ $ 1-50;
+	cards;
+    Duration of disease group
+    ;
+run;
+
+data dummy_Edu;
+	input _NAME_ $ 1-50;
+	cards;
+    Years of Education
+    ;
+run;
+
+data dummy_wt;
+	input _NAME_ $ 1-50;
+	cards;
+Baseline Weight (kg)
+    ;
+run;
+
+data dummy_ht;
+	input _NAME_ $ 1-50;
+	cards;
+    Baseline Height (cm)	
+    ;
+run;
+
+data dummy_bmi;
+	input _NAME_ $ 1-50;
+	cards;
+    Baseline BMI
+    ;
+run;
+
+data dummy_BMGRP;
+	input _NAME_ $ 1-50;
+	cards;
+    BMI Group
+    ;
+run;
+
+data appen;
+	set dummy_Age Age3 dummy_Age_group AGEGR13(rename=(AGEGR1=_NAME_) DROP=D) 
+		dummy_Sex Sex3(rename=(sex=_NAME_) DROP=D) dummy_Race 
+		Race3(rename=(Race=_NAME_) DROP=D) dummy_MMSE MMSETOT3 dummy_durdise durdis3 
+		dummy_durdise_grp durdsgr13 (rename=(durdsgr1=_NAME_) DROP=D) dummy_Edu 
+		educlvl3 dummy_wt WEIGHTBL3 dummy_ht HEIGHTBL3 dummy_bmi BMIBL3 dummy_BMGRP 
+		BMIBLGR13 (rename=(BMIBLGR1=_NAME_) DROP=D);
+
+	If _NAME_="M" then
+		_NAME_="Male";
+
+	If _NAME_="F" then
+		_NAME_="Female";
+run;
+
+**********************************************************************************************************************;
+%call_styles_rtf1;
+ods listing close;
+ods tagsets.rtf file="/home/u61674114/Pilot_study/Summary_of_Demographic_and_Baseline Characteristics.pdf" 
+	style=styles.rtf1 uniform tablerows=20 options(continue_tag="off");
+options orientation=landscape nodate nonumber;
+title j=c "Table 14-2.01";
+title2 j=c "Summary of Demographic and Baseline Characteristics";
+
+Proc report data=appen split="*";
+	column _Name_ placebo ('Xanomeline' low high) overall;
+	define _NAME_/ " ";
+	define Placebo/ "Placebo * (N = &trt3.)";
+	define low/ "Low Dose * (N = &trt1.)";
+	define high/ "High Dose * (N = &trt4.)";
+	define overall/ "Total * (N = &trt2.)";
+run;
+
+ods listing;
+ods tagsets.rtf close;
