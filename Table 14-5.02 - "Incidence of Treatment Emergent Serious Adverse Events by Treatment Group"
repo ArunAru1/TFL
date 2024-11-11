@@ -104,6 +104,21 @@ proc transpose data=AETERM2 out=AETERM3;
 	ID TRT01A;
 run;
 
+data appen;
+	set All_sys3 bodysys3 AETERM3 (rename=(AETERM=AEBODSYS));
+
+	if _N_=1 then
+		bodysys3="All Any Body System	";
+
+	if _N_=2 then
+		bodysys3="All Nervous System Disorders";
+
+	if Low_Dose="" then
+		Low_Dose="0";
+	Placebo="0";
+run;
+
+
 %call_styles_rtf1;
 ods listing close;
 ods tagsets.rtf file="/home/u61674114/Pilot_study/Incidence of Treatment Emergent Serious Adverse Events by Treatment Group.pdf" 
