@@ -1,0 +1,125 @@
+libname raw5 xport "/home/u61674114/INPUT/adae.xpt";
+libname raw2 xport "/home/u61674114/INPUT/pilot_adsl.xpt";
+
+data adsl1;
+	set raw2.adsl (keep=usubjid trt01a);
+
+	if TRT01A="Xanomeline Low Dose" then
+		TRT01A="Low_Dose";
+
+	if TRT01A="Xanomeline High Dose" then
+		TRT01A="High_Dose";
+run;
+
+proc sql;
+	select count(distinct(usubjid)) into : trt1 - from adsl1 group by trt01a;
+quit;
+
+data adae1;
+	set raw5.adae (rename=(TRTA=TRT01A));
+	where AESER="Y";
+
+	if TRT01A="Xanomeline Low Dose" then
+		TRT01A="Low_Dose";
+
+	if TRT01A="Xanomeline High Dose" then
+		TRT01A="High_Dose";
+run;
+
+proc freq data=adae1 NOPRINT;
+	tables AEBODSYS*TRT01A/OUT=All_sys1;
+run;
+
+data All_sys2;
+	set All_sys1;
+
+	if TRT01A="Low_Dose" then
+		count1=count!!"("!!strip(round((count/&trt3.)*100, 
+			.1))!!"%)"!!"  ["!!strip(count)!!"]";
+
+	if TRT01A="High_Dose" then
+		count1=count!!"("!!strip(round((count/&trt2.)*100, 
+			.1))!!"%)"!!"  ["!!strip(count)!!"]";
+
+	if TRT01A="Placebo" then
+		count1=count!!"("!!strip(round((count/&trt1.)*100, 
+			.1))!!"%)"!!"  ["!!strip(count)!!"]";
+run;
+
+proc transpose data=All_sys2 out=All_sys3;
+	by AEBODSYS;
+	VAR count1;
+	ID TRT01A;
+run;
+
+proc freq data=adae1 NOPRINT;
+	tables AEBODSYS*TRT01A/OUT=bodysys1;
+run;
+
+data bodysys2;
+	set bodysys1;
+
+	if TRT01A="Low_Dose" then
+		count1=count!!"("!!strip(round((count/&trt3.)*100, 
+			.1))!!"%)"!!"  ["!!strip(count)!!"]";
+
+	if TRT01A="High_Dose" then
+		count1=count!!"("!!strip(round((count/&trt2.)*100, 
+			.1))!!"%)"!!"  ["!!strip(count)!!"]";
+
+	if TRT01A="Placebo" then
+		count1=count!!"("!!strip(round((count/&trt1.)*100, 
+			.1))!!"%)"!!"  ["!!strip(count)!!"]";
+run;
+
+proc transpose data=bodysys2 out=bodysys3;
+	by AEBODSYS;
+	VAR count1;
+	ID TRT01A;
+run;
+
+proc freq data=adae1 NOPRINT;
+	tables AETERM*TRT01A/OUT=AETERM1;
+run;
+
+data AETERM2;
+	set AETERM1;
+
+	if TRT01A="Low_Dose" then
+		count1=count!!"("!!strip(round((count/&trt3.)*100, 
+			.1))!!"%)"!!"  ["!!strip(count)!!"]";
+
+	if TRT01A="High_Dose" then
+		count1=count!!"("!!strip(round((count/&trt2.)*100, 
+			.1))!!"%)"!!"  ["!!strip(count)!!"]";
+
+	if TRT01A="Placebo" then
+		count1=count!!"("!!strip(round((count/&trt1.)*100, 
+			.1))!!"%)"!!"  ["!!strip(count)!!"]";
+run;
+
+proc transpose data=AETERM2 out=AETERM3;
+	by AETERM;
+	VAR count1;
+	ID TRT01A;
+run;
+
+%call_styles_rtf1;
+ods listing close;
+ods tagsets.rtf file="/home/u61674114/Pilot_study/Incidence of Treatment Emergent Serious Adverse Events by Treatment Group.pdf" 
+	style=styles.rtf1 uniform tablerows=20 options(continue_tag="off");
+options orientation=landscape nodate nonumber;
+title j=c "Table 14-5.02";
+title2 j=c 
+	"Incidence of Treatment Emergent Serious Adverse Events by Treatment Group";
+
+proc report data=appen split="*" style(report)={frame=hsides rules=none};
+	columns AEBODSYS Placebo ('Xanomeline' Low_Dose High_Dose);
+	define AEBODSYS/ " ";
+	define Placebo/ "Placebo * (N = &trt1.)";
+	define Low_Dose/ "Low Dose * (N = &trt3.)";
+	define High_Dose/ "High Dose * (N = &trt2.)";
+run;
+
+ods listing;
+ods tagsets.rtf close;
