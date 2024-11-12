@@ -1,0 +1,198 @@
+libname raw3 "/home/u61674114/INPUT/CDISC_ADAM";
+
+data adsl1;
+	set raw3.adsl (keep=usubjid trt01a ITTFL SAFFL EFFFL COMP24FL DCDECOD);
+
+	If trt01a="Xanomeline High Dose" then
+		trt01a="High";
+
+	If trt01a="Xanomeline Low Dose" then
+		trt01a="low";
+	output;
+	trt01a="Overall";
+	output;
+run;
+
+proc sql;
+	select count(distinct(usubjid)) into : trt1 - from adsl1 group by trt01a;
+quit;
+
+Proc freq data=adsl1 noprint;
+	tables trt01a/out=big_n (Drop=percent);
+run;
+
+Proc freq data=adsl1 noprint;
+	tables trt01a*COMP24FL/out=COMP24FL_1 (Drop=percent COMP24FL);
+	where COMP24FL="Y";
+run;
+
+data COMP24FL_Y (keep=trt01a COMP24FL);
+	merge COMP24FL_1 big_n(rename=(count=count_n));
+	by trt01a;
+	COMP24FL1=round((count/count_n)*100);
+	COMP24FL=count!!" ("!!strip(COMP24FL1)!!"%)";
+run;
+
+Proc freq data=adsl1 noprint;
+	tables trt01a/out=termination_count (Drop=percent);
+	where COMP24FL="N";
+run;
+
+data termination_count1 (keep=trt01a COMP24FL_c);
+	merge termination_count big_n(rename=(count=count_n));
+	by trt01a;
+	COMP24FL1=round((count/count_n)*100);
+	COMP24FL_c=count!!" ("!!strip(COMP24FL1)!!"%)";
+run;
+
+data termination_count2;
+	merge COMP24FL_Y termination_count1;
+	by trt01a;
+run;
+
+proc transpose data=termination_count2 out=termination_count3;
+	id trt01a;
+	var COMP24FL COMP24FL_c;
+run;
+
+data dummy;
+	input _NAME_ $;
+	datalines;
+
+;
+
+data missing_add;
+	set termination_count3 dummy;
+run;
+
+data termination_count4;
+	set missing_add;
+	array missin {4} $ high overall placebo low;
+
+	do i=1 to 4;
+
+		if missin(i)=" " then
+			missin(i)="0(0%)";
+	end;
+	drop i;
+run;
+
+data dummy1;
+	input _NAME_ $ 1-50;
+	datalines;
+Completion Status
+;
+run;
+
+data termination_count5;
+	set dummy1 termination_count4;
+run;
+
+*********************************************************************************************;
+
+Proc freq data=adsl1 noprint;
+	tables trt01a*DCDECOD/out=COMP24FL_n_ (Drop=percent);
+	where COMP24FL="N";
+run;
+
+data COMP24FL_N (keep=trt01a COMP24FL DCDECOD);
+	merge COMP24FL_n_ big_n(rename=(count=count_n));
+	by trt01a;
+	COMP24FL1=round((count/count_n)*100);
+	COMP24FL=count!!" ("!!strip(COMP24FL1)!!"%)";
+run;
+
+proc sort data=COMP24FL_N;
+	by DCDECOD;
+run;
+
+proc transpose data=COMP24FL_N out=COMP24FL_N_T;
+	id trt01a;
+	var COMP24FL;
+	by DCDECOD;
+run;
+
+data dummy;
+	input DCDECOD $;
+	datalines;
+Missing
+;
+
+data early_ter;
+	set COMP24FL_N_T dummy;
+run;
+
+data early_ter1;
+	set early_ter;
+	array missin {4} $ high overall placebo low;
+
+	do i=1 to 4;
+
+		if missin(i)=" " then
+			missin(i)="0(0%)";
+	end;
+	drop i _NAME_;
+run;
+
+data dummy2;
+	input DCDECOD $ 1-50;
+	datalines;
+Reason for Early Termination (prior to Week 24)	
+;
+run;
+
+data early_ter2;
+	set dummy2 (rename=(DCDECOD=_NAME_)) early_ter1(RENAME=(DCDECOD=_NAME_));
+run;
+
+data early_ter3;
+	set termination_count5 early_ter2;
+run;
+
+********************************************************************************************************;
+%call_styles_rtf1;
+ods listing close;
+ods tagsets.rtf 
+	file="/home/u61674114/Pilot_study/Summary_of_End_of_Study_Data.pdf" 
+	style=styles.rtf1 uniform tablerows=20 options(continue_tag="off");
+options orientation=landscape nodate nonumber;
+title j=c "Table 14-1.02";
+title2 j=c "Summary of End of Study Data";
+
+proc report data=early_ter3 nocenter missing split="*" 
+		style(report)={frame=hsides rules=none};
+	columns _NAME_ Placebo ('Xanomeline' low high) overall;
+	define _NAME_/ " " style(header)=[borderbottomstyle=solid 
+		BORDERbottomWIDTH=0.5pt borderbottomcolor=grey] style(column)={just=c 
+		cellwidth=15% borderbottomstyle=solid BORDERbottomWIDTH=0.1pt 
+		borderbottomcolor=grey};
+	define Placebo/ "Placebo * (N = &trt3.)" style(header)={just=c} 
+		style(column)={just=c cellwidth=15% borderbottomstyle=solid 
+		BORDERbottomWIDTH=0.1pt borderbottomcolor=grey} 
+		style(header)=[borderbottomstyle=solid BORDERbottomWIDTH=0.5pt 
+		borderbottomcolor=grey];
+	define low/ "Low Dose * (N = &trt1.)" style(header)={just=c} 
+		style(column)={just=c cellwidth=10% borderbottomstyle=solid 
+		BORDERbottomWIDTH=0.1pt borderbottomcolor=grey} 
+		style(header)=[bordertopstyle=solid BORDERTOPWIDTH=0.5pt bordertopcolor=grey 
+		borderbottomstyle=solid BORDERbottomWIDTH=0.5pt borderbottomcolor=grey];
+	define high/ "High Dose * (N = &trt4.)" style(header)={just=c} 
+		style(column)={just=c cellwidth=10% borderbottomstyle=solid 
+		BORDERbottomWIDTH=0.1pt borderbottomcolor=grey} 
+		style(header)=[borderbottomstyle=solid BORDERbottomWIDTH=0.5pt 
+		borderbottomcolor=grey bordertopstyle=solid BORDERTOPWIDTH=0.5pt 
+		bordertopcolor=grey];
+	define overall/ "Total * (N = &trt2.)" style(header)={just=c} 
+		style(column)={just=c cellwidth=10% borderbottomstyle=solid 
+		BORDERbottomWIDTH=0.1pt borderbottomcolor=grey} 
+		style(header)=[borderbottomstyle=solid BORDERbottomWIDTH=0.5pt 
+		borderbottomcolor=grey];
+	compute after _page_;
+		line @1 "Fisher’s exact test.";
+		line @1 
+			"Based on either patient/caregiver perception or physician perception.";
+	endcomp;
+run;
+
+ods listing;
+ods tagsets.rtf close;
