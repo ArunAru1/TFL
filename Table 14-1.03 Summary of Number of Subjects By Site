@@ -1,24 +1,34 @@
+/* Set the library reference to the location of the input file */
 libname raw3 "/home/u61674114/INPUT/CDISC_ADAM";
 
+/* Create a new dataset adsl1 from the raw data, selecting specific variables */
 data adsl1;
 	set raw3.adsl (keep=usubjid siteid sitegr1 trt01a ITTFL SAFFL EFFFL COMP24FL 
 		DCDECOD);
 	Pooled_Site_ID=strip(sitegr1)!!" — "!!strip(siteid);
 
+
+	/* Standardize treatment group names for ease of use in analysis */
 	If trt01a="Xanomeline High Dose" then
 		trt01a="High";
 
 	If trt01a="Xanomeline Low Dose" then
 		trt01a="low";
 	output;
+	
+	
+    /* Add an 'Overall' category row for total column */
 	trt01a="Overall";
 	output;
 run;
 
+/* Get the distinct count of subjects for each treatment group and store in macro variables for adding into header N */
 proc sql;
 	select count(distinct(usubjid)) into : trt1 - from adsl1 group by trt01a;
 quit;
 
+
+/* Frequency table for EFFFL population by treatment group */
 proc freq data=adsl1 noprint;
 	tables Pooled_Site_ID*trt01a/out=try;
 	where EFFFL="Y";
@@ -30,6 +40,7 @@ proc transpose data=try out=EFFFL_;
 	var count;
 run;
 
+/* Frequency table for Pooled_Site_ID by treatment group */
 proc freq data=adsl1 noprint;
 	tables Pooled_Site_ID*trt01a/out=try;
 	where ITTFL="Y";
@@ -42,6 +53,7 @@ proc transpose data=try out=ITTFL_ (rename=(high=hi low=lo overall=ov
 	var count;
 run;
 
+/* Frequency table for COMP24FL population by treatment group */
 proc freq data=adsl1 noprint;
 	tables Pooled_Site_ID*trt01a/out=try;
 	where COMP24FL="Y";
@@ -54,12 +66,14 @@ proc transpose data=try out=COMP24FL_(rename=(high=h low=l overall=o placebo=p)
 	var count;
 run;
 
+/* merge all the dataset*/
 data final1;
 	merge EFFFL_ ITTFL_ COMP24FL_;
 	by Pooled_Site_ID;
 	drop _name_ _label_;
 run;
 
+/* missing value change to 0 using array */
 data final2;
 	set final1;
 	array missin (12) high hi h low lo l overall ov o placebo pl p;
@@ -71,6 +85,15 @@ data final2;
 	end;
 	drop i;
 run;
+
+/* Set the report style and file output format */
+%call_styles_rtf1;
+ods listing close;
+ods tagsets.rtf file="/home/u61674114/Pilot_study/demog.pdf" style=styles.rtf1 
+	uniform tablerows=20 options(continue_tag="off");
+options orientation=landscape nodate nonumber;
+
+/* Create a summary table using PROC REPORT */
 
 Title j=c "Table 14-1.03";
 Title2 j=c "Summary of Number of Subjects By Site";
@@ -107,3 +130,8 @@ proc report data=final2 nocenter missing split="*";
 		line @3 "3 Com: Number of subjects completing Week 24.";
 	endcomp;
 run;
+
+
+/* Close the RTF output */
+ods listing;
+ods tagsets.rtf close;
