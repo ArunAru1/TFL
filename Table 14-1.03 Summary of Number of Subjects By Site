@@ -1,0 +1,109 @@
+libname raw3 "/home/u61674114/INPUT/CDISC_ADAM";
+
+data adsl1;
+	set raw3.adsl (keep=usubjid siteid sitegr1 trt01a ITTFL SAFFL EFFFL COMP24FL 
+		DCDECOD);
+	Pooled_Site_ID=strip(sitegr1)!!" — "!!strip(siteid);
+
+	If trt01a="Xanomeline High Dose" then
+		trt01a="High";
+
+	If trt01a="Xanomeline Low Dose" then
+		trt01a="low";
+	output;
+	trt01a="Overall";
+	output;
+run;
+
+proc sql;
+	select count(distinct(usubjid)) into : trt1 - from adsl1 group by trt01a;
+quit;
+
+proc freq data=adsl1 noprint;
+	tables Pooled_Site_ID*trt01a/out=try;
+	where EFFFL="Y";
+run;
+
+proc transpose data=try out=EFFFL_;
+	id trt01a;
+	by Pooled_Site_ID;
+	var count;
+run;
+
+proc freq data=adsl1 noprint;
+	tables Pooled_Site_ID*trt01a/out=try;
+	where ITTFL="Y";
+run;
+
+proc transpose data=try out=ITTFL_ (rename=(high=hi low=lo overall=ov 
+		placebo=pl));
+	id trt01a;
+	by Pooled_Site_ID;
+	var count;
+run;
+
+proc freq data=adsl1 noprint;
+	tables Pooled_Site_ID*trt01a/out=try;
+	where COMP24FL="Y";
+run;
+
+proc transpose data=try out=COMP24FL_(rename=(high=h low=l overall=o placebo=p) 
+		);
+	id trt01a;
+	by Pooled_Site_ID;
+	var count;
+run;
+
+data final1;
+	merge EFFFL_ ITTFL_ COMP24FL_;
+	by Pooled_Site_ID;
+	drop _name_ _label_;
+run;
+
+data final2;
+	set final1;
+	array missin (12) high hi h low lo l overall ov o placebo pl p;
+
+	do i=1 to 12;
+
+		if missin(i)=. then
+			missin(i)=0;
+	end;
+	drop i;
+run;
+
+Title j=c "Table 14-1.03";
+Title2 j=c "Summary of Number of Subjects By Site";
+
+proc report data=final2 nocenter missing split="*";
+	columns Pooled_Site_ID 
+            ('Xanomeline * Low Dose * (N=84)' pl placebo p) 
+		('Xanomeline * High Dose * (N=84)' lo low l) ('  * Placebo * (N=86)' hi high 
+		h) ('  Total * (N=254) ' ov overall o);
+	define Pooled_Site_ID / display "Pooled — Site ID";
+
+	/* Define columns with sum analysis to calculate totals */
+	define placebo / analysis sum "ITT";
+	define p / analysis sum "Eff";
+	define pl / analysis sum "Com";
+	define low / analysis sum "ITT";
+	define lo / analysis sum "Eff";
+	define l / analysis sum "Com";
+	define high / analysis sum "ITT";
+	define hi / analysis sum "Eff";
+	define h / analysis sum "Com";
+	define overall / analysis sum "ITT";
+	define ov / analysis sum "Eff";
+	define o / analysis sum "Com";
+
+	/* Add total row at the end of the table */
+	rbreak after / summarize style=[fontweight=bold];
+	compute after;
+		Pooled_Site_ID="Total";
+	endcomp;
+	compute after _page_;
+		line  @1 "1 ITT: Number of subjects in the ITT population";
+		line @2 "2 Eff: Number of subjects in the Efficacy population";
+		line @3 "3 Com: Number of subjects completing Week 24.";
+	endcomp;
+run;
