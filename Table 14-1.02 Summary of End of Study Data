@@ -1,31 +1,40 @@
+/* Set the library reference to the location of the input transport file */
 libname raw3 "/home/u61674114/INPUT/CDISC_ADAM";
 
+/* Create a new dataset adsl1 from the raw data, selecting specific variables */
 data adsl1;
 	set raw3.adsl (keep=usubjid trt01a ITTFL SAFFL EFFFL COMP24FL DCDECOD);
 
+	/* Standardize treatment group names for ease of use in analysis */
 	If trt01a="Xanomeline High Dose" then
 		trt01a="High";
 
 	If trt01a="Xanomeline Low Dose" then
 		trt01a="low";
 	output;
+
+	/* Add an 'Overall' category row for total column */
 	trt01a="Overall";
 	output;
 run;
 
+/* Get the distinct count of subjects for each treatment group and store in macro variables for adding into header N */
 proc sql;
 	select count(distinct(usubjid)) into : trt1 - from adsl1 group by trt01a;
 quit;
 
+/* Generate frequency counts of treatment groups */
 Proc freq data=adsl1 noprint;
 	tables trt01a/out=big_n (Drop=percent);
 run;
 
+/* Frequency table for COMP24FL population by treatment group */
 Proc freq data=adsl1 noprint;
 	tables trt01a*COMP24FL/out=COMP24FL_1 (Drop=percent COMP24FL);
 	where COMP24FL="Y";
 run;
 
+/* Calculate COMP24FL population percentages and format as a text string */
 data COMP24FL_Y (keep=trt01a COMP24FL);
 	merge COMP24FL_1 big_n(rename=(count=count_n));
 	by trt01a;
@@ -33,11 +42,13 @@ data COMP24FL_Y (keep=trt01a COMP24FL);
 	COMP24FL=count!!" ("!!strip(COMP24FL1)!!"%)";
 run;
 
+/* Frequency table for not completed COMP24FL population by treatment group */
 Proc freq data=adsl1 noprint;
 	tables trt01a/out=termination_count (Drop=percent);
 	where COMP24FL="N";
 run;
 
+/* Calculate not completed COMP24FL population percentages and format as a text string */
 data termination_count1 (keep=trt01a COMP24FL_c);
 	merge termination_count big_n(rename=(count=count_n));
 	by trt01a;
@@ -45,6 +56,7 @@ data termination_count1 (keep=trt01a COMP24FL_c);
 	COMP24FL_c=count!!" ("!!strip(COMP24FL1)!!"%)";
 run;
 
+/* Merge all population datasets   */
 data termination_count2;
 	merge COMP24FL_Y termination_count1;
 	by trt01a;
@@ -150,6 +162,8 @@ data early_ter3;
 run;
 
 ********************************************************************************************************;
+
+/* Set the report style and file output format */
 %call_styles_rtf1;
 ods listing close;
 ods tagsets.rtf 
@@ -159,9 +173,12 @@ options orientation=landscape nodate nonumber;
 title j=c "Table 14-1.02";
 title2 j=c "Summary of End of Study Data";
 
+/* Create a summary table using PROC REPORT */
 proc report data=early_ter3 nocenter missing split="*" 
 		style(report)={frame=hsides rules=none};
 	columns _NAME_ Placebo ('Xanomeline' low high) overall;
+
+	/* Define column headers and formatting */
 	define _NAME_/ " " style(header)=[borderbottomstyle=solid 
 		BORDERbottomWIDTH=0.5pt borderbottomcolor=grey] style(column)={just=c 
 		cellwidth=15% borderbottomstyle=solid BORDERbottomWIDTH=0.1pt 
@@ -194,5 +211,6 @@ proc report data=early_ter3 nocenter missing split="*"
 	endcomp;
 run;
 
+/* Close the RTF output */
 ods listing;
 ods tagsets.rtf close;
