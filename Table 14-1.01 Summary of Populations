@@ -1,30 +1,37 @@
+
+/* Set the library reference to the location of the input transport file */
 libname raw2 xport "/home/u61674114/INPUT/pilot_adsl.xpt";
 
+/* Create a new dataset adsl1 from the raw data, selecting specific variables */
 data adsl1;
 	set raw2.adsl (keep=usubjid trt01a ITTFL SAFFL EFFFL COMP24FL DCDECOD);
 
-	If trt01a="Xanomeline High Dose" then
-		trt01a="High";
-
-	If trt01a="Xanomeline Low Dose" then
-		trt01a="low";
+	/* Standardize treatment group names for ease of use in analysis */
+	If trt01a="Xanomeline High Dose" then trt01a="High";
+	If trt01a="Xanomeline Low Dose" then trt01a="low";
 	output;
+
+	/* Add an 'Overall' category row for total column */
 	trt01a="Overall";
 	output;
 run;
 
+/* Get the distinct count of subjects for each treatment group and store in macro variables for adding into header N */
 proc sql;
-	select count(distinct(usubjid)) into : trt1 - from adsl1 group by trt01a;
+	select count(distinct(usubjid)) into :trt1 - from adsl1 group by trt01a;
 quit;
 
+/* Generate frequency counts of treatment groups */
 Proc freq data=adsl1 noprint;
 	tables trt01a/out=big_n (Drop=percent);
 run;
 
+/* Frequency table for ITT population by treatment group */
 Proc freq data=adsl1 noprint;
 	tables trt01a*ITTFL/out=ITTFL_n (Drop=percent ITTFL);
 run;
 
+/* Calculate ITT population percentages and format as a text string */
 data ITTFL_1 (keep=trt01a ITTFL);
 	merge ITTFL_n big_n(rename=(count=count_n));
 	by trt01a;
@@ -32,10 +39,12 @@ data ITTFL_1 (keep=trt01a ITTFL);
 	ITTFL=count!!" ("!!strip(ITTFL1)!!"%)";
 run;
 
+/* Frequency table for Safety population by treatment group */
 Proc freq data=adsl1 noprint;
 	tables trt01a*SAFFL/out=safety_n (Drop=percent SAFFL);
 run;
 
+/* Calculate Safety population percentages and format as a text string */
 data safety_1 (keep=trt01a SAFFL);
 	merge safety_n big_n(rename=(count=count_n));
 	by trt01a;
@@ -43,11 +52,13 @@ data safety_1 (keep=trt01a SAFFL);
 	SAFFL=count!!" ("!!strip(SAFFL1)!!"%)";
 run;
 
+/* Frequency table for Efficacy population by treatment group, restricted to 'Y' */
 Proc freq data=adsl1 noprint;
 	tables trt01a*EFFFL/out=efficacy_n (Drop=percent EFFFL);
 	where EFFFl="Y";
 run;
 
+/* Calculate Efficacy population percentages and format as a text string */
 data efficacy_1 (keep=trt01a EFFFL);
 	merge efficacy_n big_n(rename=(count=count_n));
 	by trt01a;
@@ -55,11 +66,13 @@ data efficacy_1 (keep=trt01a EFFFL);
 	EFFFL=count!!" ("!!strip(EFFFL1)!!"%)";
 run;
 
+/* Frequency table for Complete Week 24 population by treatment group, restricted to 'Y' */
 Proc freq data=adsl1 noprint;
 	tables trt01a*COMP24FL/out=COMP24FL_n (Drop=percent COMP24FL);
 	where COMP24FL="Y";
 run;
 
+/* Calculate Complete Week 24 population percentages and format as a text string */
 data COMP24FL_1 (keep=trt01a COMP24FL);
 	merge COMP24FL_n big_n(rename=(count=count_n));
 	by trt01a;
@@ -67,68 +80,69 @@ data COMP24FL_1 (keep=trt01a COMP24FL);
 	COMP24FL=count!!" ("!!strip(COMP24FL1)!!"%)";
 run;
 
+/* Frequency table for DCDECOD population by treatment group, restricted to 'COMPLETED' */
 Proc freq data=adsl1 noprint;
 	tables trt01a*DCDECOD/out=DCDECOD_n (Drop=percent DCDECOD);
 	where DCDECOD="COMPLETED";
 run;
 
-data DCDECOD_1  (keep=trt01a DCDECOD);
+/* Calculate DCDECOD population percentages and format as a text string */
+data DCDECOD_1 (keep=trt01a DCDECOD);
 	merge DCDECOD_n big_n(rename=(count=count_n));
 	by trt01a;
 	DCDECOD1=round((count/count_n)*100);
 	DCDECOD=count!!" ("!!strip(DCDECOD1)!!"%)";
 run;
 
+/* Merge all population datasets for reporting */
 data merge1;
 	merge ITTFL_1 safety_1 efficacy_1 COMP24FL_1 DCDECOD_1;
 	by trt01a;
 run;
 
+/* Transpose dataset to have treatment groups as columns */
 Proc transpose data=merge1 out=merge2;
 	id trt01a;
 	var ittfl saffl efffl comp24fl dcdecod;
 run;
 
+/* Rename the _NAME_ variable to meaningful labels for reporting */
 data namechange;
 	length _NAME_ $ 30;
 	set merge2;
 
-	if _NAME_="ITTFL" then
-		_NAME_="Intent-To-Treat (ITT)";
-
-	if _NAME_="SAFFL" then
-		_NAME_="Safety";
-
-	if _NAME_="EFFFL" then
-		_NAME_="Efficacy";
-
-	if _NAME_="COMP24FL" then
-		_NAME_="Complete Week 24";
-
-	if _NAME_="DCDECOD" then
-		_NAME_="Complete Study";
+	if _NAME_="ITTFL" then _NAME_="Intent-To-Treat (ITT)";
+	if _NAME_="SAFFL" then _NAME_="Safety";
+	if _NAME_="EFFFL" then _NAME_="Efficacy";
+	if _NAME_="COMP24FL" then _NAME_="Complete Week 24";
+	if _NAME_="DCDECOD" then _NAME_="Complete Study";
 run;
 
+/* Set the report style and file output format */
 %call_styles_rtf1;
 ods listing close;
 ods tagsets.rtf file="/home/u61674114/Pilot_study/demog.pdf" style=styles.rtf1 
 	uniform tablerows=20 options(continue_tag="off");
 options orientation=landscape nodate nonumber;
+
+/* Create a summary table using PROC REPORT */
 title "Table 14-1.01";
 title2 "Summary of Populations";
-
 Proc report data=namechange split="*" style(report)={frame=hsides rules=rows} 
 		style(header)={BORDERBOTTOMWIDTh=2 bordertopcolor=green};
 	columns _NAME_ Placebo ("Xanomeline" low high) overall;
+
+	/* Define column headers and formatting */
 	define _NAME_/ " ";
 	define Placebo/ "Placebo * (N = &trt3. )" style(header)={just=c} 
 		style(column)={just=c cellwidth=15%};
 	define low/ "Low Dose * (N = &trt1.)" style(header)={just=c} 
 		style(column)={just=c cellwidth=10%};
-	define high/ "High Dose * (N = &trt4.)" style(header)={just=c} 
-		style(column)={just=c cellwidth=10%};
+	define high/ "High Dose * (N = &trt4.)" style(header)={just=c cellwidth=10%};
 	define overall/ "Total * (N = &trt2.)" style(header)={just=c} 
 		style(column)={just=c cellwidth=10%};
+
+	/* Add notes at the bottom of the report */
 	compute after _page_;
 		line @1 "1 N in column headers represents number of subjects entered in study (i.e., signed informed consent).";
 		line @1 "2 The ITT population includes all subjects randomized.";
@@ -137,5 +151,6 @@ Proc report data=namechange split="*" style(report)={frame=hsides rules=rows}
 	endcomp;
 run;
 
+/* Close the RTF output */
 ods listing;
 ods tagsets.rtf close;
